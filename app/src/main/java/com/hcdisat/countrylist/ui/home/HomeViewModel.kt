@@ -1,21 +1,26 @@
 package com.hcdisat.countrylist.ui.home
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.hcdisat.countrylist.core.ServiceLocatorImpl
 import com.hcdisat.countrylist.domain.repository.ErrorMapper
 import com.hcdisat.countrylist.domain.usecases.GetCountriesUseCase
-import com.hcdisat.countrylist.ui.model.HomeState
+import com.hcdisat.countrylist.ui.home.model.HomeState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class HomeViewModel constructor(
+class HomeViewModel(
     private val getCountries: GetCountriesUseCase,
     private val errorMapper: ErrorMapper,
     private val dispatcher: CoroutineDispatcher
 ) : ViewModel() {
-    private val _state = MutableStateFlow(HomeState.Loading)
+    private val _state: MutableStateFlow<HomeState> = MutableStateFlow(HomeState.Loading)
     val state = _state.asStateFlow()
 
     init {
@@ -23,8 +28,8 @@ class HomeViewModel constructor(
     }
 
     private fun loadCountries() {
-        viewModelScope.launch(dispatcher) {
-            getCountries().fold(
+        viewModelScope.launch {
+            _state.value = withContext(dispatcher) { getCountries() }.fold(
                 onSuccess = {
                     HomeState.Completed(it)
                 },
@@ -36,12 +41,17 @@ class HomeViewModel constructor(
     }
 
     companion object {
-//        val Factory: ViewModelProvider.Factory by lazy {
-//            viewModelFactory {
-//                initializer {
-//                    HomeViewModel()
-//                }
-//            }
-//        }
+        val Factory: ViewModelProvider.Factory by lazy {
+            val serviceLocator = ServiceLocatorImpl.instance
+            viewModelFactory {
+                initializer {
+                    HomeViewModel(
+                        getCountries = serviceLocator.locateGetCountriesUseCase(),
+                        dispatcher = serviceLocator.locateIODispatcher(),
+                        errorMapper = serviceLocator.locateErrorMapper()
+                    )
+                }
+            }
+        }
     }
 }

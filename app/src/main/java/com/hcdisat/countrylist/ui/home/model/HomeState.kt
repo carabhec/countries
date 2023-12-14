@@ -1,4 +1,4 @@
-package com.hcdisat.countrylist.ui.model
+package com.hcdisat.countrylist.ui.home.model
 
 import com.hcdisat.countrylist.domain.model.DomainCountry
 
