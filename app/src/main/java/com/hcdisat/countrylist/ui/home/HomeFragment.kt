@@ -11,6 +11,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.hcdisat.countrylist.databinding.FragmentHomeBinding
+import com.hcdisat.countrylist.ui.home.adapter.CountryAdapter
+import com.hcdisat.countrylist.ui.home.model.HomeState
 import kotlinx.coroutines.launch
 
 class HomeFragment : Fragment() {
@@ -20,12 +22,20 @@ class HomeFragment : Fragment() {
 
     private val viewModel: HomeViewModel by viewModels { HomeViewModel.Factory }
 
+    private val homeAdapter by lazy {
+        CountryAdapter()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        binding.countries.apply {
+            adapter = homeAdapter
+        }
+
         return binding.root
     }
 
@@ -33,9 +43,7 @@ class HomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                viewModel.state.collect {
-                    Log.d("HomeFragment", "onViewCreated: $it")
-                }
+                viewModel.state.collect(::handleState)
             }
         }
     }
@@ -43,5 +51,24 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun handleState(state: HomeState) {
+        when (state) {
+            is HomeState.Completed -> {
+                binding.progress.visibility = View.GONE
+                homeAdapter.setCountries(state.countries)
+                binding.countries.visibility = View.VISIBLE
+            }
+            is HomeState.Error -> {
+                // here we could handle errors, and show them in a pretty nice UI.
+                // logging the errors for now
+                Log.e("HomeFragment", "${state.throwable.message}", state.throwable)
+            }
+            HomeState.Loading -> {
+                binding.countries.visibility = View.GONE
+                binding.progress.visibility = View.VISIBLE
+            }
+        }
     }
 }
